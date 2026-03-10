@@ -82,8 +82,8 @@ export default function App() {
     };
   }, [strcShares, sataShares, strcYield, sataYield, strc.price, sata.price]);
 
-  const handleSlider = (value: number[]) => {
-    const strcPct = value[0] / 100;
+  const handleSlider = (value: number | readonly number[]) => {
+    const strcPct = (Array.isArray(value) ? value[0] : value) / 100;
     const totalValue = calculations.totalValue;
     if (totalValue === 0) return;
     const newStrcShares = Math.round((totalValue * strcPct) / strc.price);

@@ -1,73 +1,77 @@
-# React + TypeScript + Vite
+# incomash
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+An income tracker inspired by [strc.live](https://strc.live) — get a clear overview of your **STRC** and **SATA** holdings, portfolio allocation, and projected monthly/annual dividend income.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- 📊 **Holdings overview** — enter your STRC and SATA share counts to instantly see total portfolio value
+- 💰 **Income projections** — view estimated monthly and annual dividend income based on configurable yield rates
+- 📈 **Live prices** — stock prices are fetched in real time from the Alpha Vantage API (with 1-hour caching and localStorage persistence)
+- ⚖️ **Allocation slider** — interactively rebalance your STRC/SATA allocation to model different portfolio mixes
+- ⚙️ **Advanced settings** — customize yield percentages for each asset to reflect your own assumptions
+- 💾 **Persistent state** — share counts and settings are saved to localStorage so your data survives page refreshes
 
-## React Compiler
+## Tech Stack
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+| Layer | Technology |
+|-------|-----------|
+| Framework | React 19 + TypeScript |
+| Build | Vite |
+| Styling | Tailwind CSS v4 |
+| UI Components | shadcn/ui (built on @base-ui/react) |
+| Icons | lucide-react |
+| Prices API | Alpha Vantage |
 
-## Expanding the ESLint configuration
+## Getting Started
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### Prerequisites
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+- Node.js 18+
+- An [Alpha Vantage API key](https://www.alphavantage.co/support/#api-key) (free tier available)
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+### Setup
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-]);
+```bash
+# Install dependencies
+npm install
+
+# Set your Alpha Vantage API key
+echo "VITE_ALPHA_VANTAGE_API_KEY=your_key_here" > .env.local
+
+# Start the dev server
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Then open [http://localhost:5173](http://localhost:5173) in your browser.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x';
-import reactDom from 'eslint-plugin-react-dom';
+### Build for Production
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-]);
+```bash
+npm run build
+npm run preview
 ```
+
+## How It Works
+
+1. Enter the number of STRC and SATA shares you hold
+2. Live prices are fetched from Alpha Vantage and cached locally for 1 hour
+3. Portfolio value is calculated as `shares × price` for each asset
+4. Income is estimated as `portfolio value × annual yield %`
+5. Monthly income = annual income ÷ 12
+6. Use the allocation slider or advanced settings to explore different scenarios
+
+## Project Structure
+
+```
+src/
+├── App.tsx              # Main application UI and calculation logic
+├── hooks/
+│   └── useStockPrice.ts # Live price fetching with caching
+├── components/ui/       # Reusable shadcn UI components
+└── lib/
+    └── utils.ts         # Tailwind class merging utility
+```
+
+## License
+
+MIT
