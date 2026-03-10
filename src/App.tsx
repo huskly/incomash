@@ -1,79 +1,70 @@
-import { useState, useMemo, useCallback } from "react"
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Slider } from "@/components/ui/slider"
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible"
-import { ChevronDown, Loader2 } from "lucide-react"
-import { useStockPrice } from "@/hooks/useStockPrice"
+import { useState, useMemo, useCallback } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Slider } from '@/components/ui/slider';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { ChevronDown, Loader2 } from 'lucide-react';
+import { useStockPrice } from '@/hooks/useStockPrice';
 
-const STRC_FALLBACK = 25.0
-const SATA_FALLBACK = 25.0
+const STRC_FALLBACK = 25.0;
+const SATA_FALLBACK = 25.0;
 
 function formatCurrency(value: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(value)
+  }).format(value);
 }
 
 function formatPercent(value: number): string {
-  return `${value.toFixed(2)}%`
+  return `${value.toFixed(2)}%`;
 }
 
 export default function App() {
-  const strc = useStockPrice("STRC", STRC_FALLBACK)
-  const sata = useStockPrice("SATA", SATA_FALLBACK)
-  const pricesLoading = strc.loading || sata.loading
+  const strc = useStockPrice('STRC', STRC_FALLBACK);
+  const sata = useStockPrice('SATA', SATA_FALLBACK);
+  const pricesLoading = strc.loading || sata.loading;
 
   const [strcShares, setStrcSharesRaw] = useState(() => {
-    const saved = localStorage.getItem("strcShares")
-    return saved !== null ? Number(saved) : 1000
-  })
+    const saved = localStorage.getItem('strcShares');
+    return saved !== null ? Number(saved) : 1000;
+  });
   const [sataShares, setSataSharesRaw] = useState(() => {
-    const saved = localStorage.getItem("sataShares")
-    return saved !== null ? Number(saved) : 1000
-  })
+    const saved = localStorage.getItem('sataShares');
+    return saved !== null ? Number(saved) : 1000;
+  });
   const setStrcShares = useCallback((v: number) => {
-    setStrcSharesRaw(v)
-    localStorage.setItem("strcShares", String(v))
-  }, [])
+    setStrcSharesRaw(v);
+    localStorage.setItem('strcShares', String(v));
+  }, []);
   const setSataShares = useCallback((v: number) => {
-    setSataSharesRaw(v)
-    localStorage.setItem("sataShares", String(v))
-  }, [])
-  const [strcYield, setStrcYield] = useState(11.5)
-  const [sataYield, setSataYield] = useState(13.3)
-  const [advancedOpen, setAdvancedOpen] = useState(false)
+    setSataSharesRaw(v);
+    localStorage.setItem('sataShares', String(v));
+  }, []);
+  const [strcYield, setStrcYield] = useState(11.5);
+  const [sataYield, setSataYield] = useState(13.3);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   const calculations = useMemo(() => {
-    const strcValue = strcShares * strc.price
-    const sataValue = sataShares * sata.price
-    const totalValue = strcValue + sataValue
+    const strcValue = strcShares * strc.price;
+    const sataValue = sataShares * sata.price;
+    const totalValue = strcValue + sataValue;
 
-    const strcAllocationPct = totalValue > 0 ? (strcValue / totalValue) * 100 : 0
-    const sataAllocationPct = totalValue > 0 ? (sataValue / totalValue) * 100 : 0
+    const strcAllocationPct = totalValue > 0 ? (strcValue / totalValue) * 100 : 0;
+    const sataAllocationPct = totalValue > 0 ? (sataValue / totalValue) * 100 : 0;
 
-    const strcAnnualIncome = strcValue * (strcYield / 100)
-    const sataAnnualIncome = sataValue * (sataYield / 100)
-    const totalAnnualIncome = strcAnnualIncome + sataAnnualIncome
+    const strcAnnualIncome = strcValue * (strcYield / 100);
+    const sataAnnualIncome = sataValue * (sataYield / 100);
+    const totalAnnualIncome = strcAnnualIncome + sataAnnualIncome;
 
-    const strcMonthlyIncome = strcAnnualIncome / 12
-    const sataMonthlyIncome = sataAnnualIncome / 12
-    const totalMonthlyIncome = totalAnnualIncome / 12
+    const strcMonthlyIncome = strcAnnualIncome / 12;
+    const sataMonthlyIncome = sataAnnualIncome / 12;
+    const totalMonthlyIncome = totalAnnualIncome / 12;
 
-    const blendedYield = totalValue > 0 ? (totalAnnualIncome / totalValue) * 100 : 0
+    const blendedYield = totalValue > 0 ? (totalAnnualIncome / totalValue) * 100 : 0;
 
     return {
       strcValue,
@@ -88,29 +79,27 @@ export default function App() {
       sataMonthlyIncome,
       totalMonthlyIncome,
       blendedYield,
-    }
-  }, [strcShares, sataShares, strcYield, sataYield, strc.price, sata.price])
+    };
+  }, [strcShares, sataShares, strcYield, sataYield, strc.price, sata.price]);
 
   const handleSlider = (value: number[]) => {
-    const strcPct = value[0] / 100
-    const totalValue = calculations.totalValue
-    if (totalValue === 0) return
-    const newStrcShares = Math.round((totalValue * strcPct) / strc.price)
-    const newSataShares = Math.round((totalValue * (1 - strcPct)) / sata.price)
-    setStrcShares(newStrcShares)
-    setSataShares(newSataShares)
-  }
+    const strcPct = value[0] / 100;
+    const totalValue = calculations.totalValue;
+    if (totalValue === 0) return;
+    const newStrcShares = Math.round((totalValue * strcPct) / strc.price);
+    const newSataShares = Math.round((totalValue * (1 - strcPct)) / sata.price);
+    setStrcShares(newStrcShares);
+    setSataShares(newSataShares);
+  };
 
-  const sliderValue = calculations.totalValue > 0 ? calculations.strcAllocationPct : 50
+  const sliderValue = calculations.totalValue > 0 ? calculations.strcAllocationPct : 50;
 
   return (
     <div className="dark min-h-screen bg-background text-foreground">
       <div className="mx-auto max-w-2xl px-4 py-8">
         <header className="mb-8 text-center">
           <h1 className="text-3xl font-bold tracking-tight">incomash</h1>
-          <p className="mt-2 text-muted-foreground">
-            Estimate your STRC &amp; SATA income
-          </p>
+          <p className="mt-2 text-muted-foreground">Estimate your STRC &amp; SATA income</p>
           {pricesLoading && (
             <div className="mt-2 flex items-center justify-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="h-3 w-3 animate-spin" />
@@ -160,19 +149,14 @@ export default function App() {
                 <span>STRC {calculations.strcAllocationPct.toFixed(0)}%</span>
                 <span>SATA {calculations.sataAllocationPct.toFixed(0)}%</span>
               </div>
-              <Slider
-                value={[sliderValue]}
-                onValueChange={handleSlider}
-                max={100}
-                step={1}
-              />
+              <Slider value={[sliderValue]} onValueChange={handleSlider} max={100} step={1} />
             </div>
 
             {/* Advanced Settings */}
             <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
               <CollapsibleTrigger className="flex w-full items-center gap-2 pt-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
                 <ChevronDown
-                  className={`h-4 w-4 transition-transform ${advancedOpen ? "rotate-180" : ""}`}
+                  className={`h-4 w-4 transition-transform ${advancedOpen ? 'rotate-180' : ''}`}
                 />
                 Advanced Settings
               </CollapsibleTrigger>
@@ -186,9 +170,7 @@ export default function App() {
                       step={0.1}
                       min={0}
                       value={strcYield}
-                      onChange={(e) =>
-                        setStrcYield(Number(e.target.value) || 0)
-                      }
+                      onChange={(e) => setStrcYield(Number(e.target.value) || 0)}
                     />
                   </div>
                   <div className="space-y-2">
@@ -199,9 +181,7 @@ export default function App() {
                       step={0.1}
                       min={0}
                       value={sataYield}
-                      onChange={(e) =>
-                        setSataYield(Number(e.target.value) || 0)
-                      }
+                      onChange={(e) => setSataYield(Number(e.target.value) || 0)}
                     />
                   </div>
                 </div>
@@ -263,12 +243,8 @@ export default function App() {
                     <td className="py-3 text-right">
                       {calculations.strcAllocationPct.toFixed(0)}%
                     </td>
-                    <td className="py-3 text-right">
-                      {formatCurrency(calculations.strcValue)}
-                    </td>
-                    <td className="py-3 text-right">
-                      {formatPercent(strcYield)}
-                    </td>
+                    <td className="py-3 text-right">{formatCurrency(calculations.strcValue)}</td>
+                    <td className="py-3 text-right">{formatPercent(strcYield)}</td>
                     <td className="py-3 text-right text-emerald-400">
                       {formatCurrency(calculations.strcMonthlyIncome)}
                     </td>
@@ -281,12 +257,8 @@ export default function App() {
                     <td className="py-3 text-right">
                       {calculations.sataAllocationPct.toFixed(0)}%
                     </td>
-                    <td className="py-3 text-right">
-                      {formatCurrency(calculations.sataValue)}
-                    </td>
-                    <td className="py-3 text-right">
-                      {formatPercent(sataYield)}
-                    </td>
+                    <td className="py-3 text-right">{formatCurrency(calculations.sataValue)}</td>
+                    <td className="py-3 text-right">{formatPercent(sataYield)}</td>
                     <td className="py-3 text-right text-emerald-400">
                       {formatCurrency(calculations.sataMonthlyIncome)}
                     </td>
@@ -297,12 +269,8 @@ export default function App() {
                   <tr className="font-semibold">
                     <td className="pt-3">Total</td>
                     <td className="pt-3 text-right">100%</td>
-                    <td className="pt-3 text-right">
-                      {formatCurrency(calculations.totalValue)}
-                    </td>
-                    <td className="pt-3 text-right">
-                      {formatPercent(calculations.blendedYield)}
-                    </td>
+                    <td className="pt-3 text-right">{formatCurrency(calculations.totalValue)}</td>
+                    <td className="pt-3 text-right">{formatPercent(calculations.blendedYield)}</td>
                     <td className="pt-3 text-right text-emerald-400">
                       {formatCurrency(calculations.totalMonthlyIncome)}
                     </td>
@@ -321,5 +289,5 @@ export default function App() {
         </footer>
       </div>
     </div>
-  )
+  );
 }
