@@ -13,14 +13,14 @@ An income tracker inspired by [strc.live](https://strc.live) — get a clear ove
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Framework | React 19 + TypeScript |
-| Build | Vite |
-| Styling | Tailwind CSS v4 |
+| Layer         | Technology                          |
+| ------------- | ----------------------------------- |
+| Framework     | React 19 + TypeScript               |
+| Build         | Vite                                |
+| Styling       | Tailwind CSS v4                     |
 | UI Components | shadcn/ui (built on @base-ui/react) |
-| Icons | lucide-react |
-| Prices API | Alpha Vantage |
+| Icons         | lucide-react                        |
+| Prices API    | Alpha Vantage                       |
 
 ## Getting Started
 
