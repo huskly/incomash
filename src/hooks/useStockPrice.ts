@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useReducer, useRef } from 'react';
 
 const CACHE_DURATION_MS = 60 * 60 * 1000; // 1 hour
 const API_KEY = import.meta.env.VITE_ALPHA_VANTAGE_API_KEY as string;
@@ -7,6 +7,19 @@ interface CacheEntry {
   price: number;
   timestamp: number;
 }
+
+interface StockPriceState {
+  symbol: string;
+  price: number | null;
+  loading: boolean;
+  error: string | null;
+}
+
+type StockPriceAction =
+  | { type: 'reset'; symbol: string }
+  | { type: 'load'; symbol: string }
+  | { type: 'success'; symbol: string; price: number }
+  | { type: 'error'; symbol: string; error: string };
 
 function getCached(symbol: string): number | null {
   try {
@@ -51,18 +64,62 @@ async function fetchPrice(symbol: string): Promise<number> {
   return promise;
 }
 
+function createInitialState(symbol: string): StockPriceState {
+  return {
+    symbol,
+    price: getCached(symbol),
+    loading: false,
+    error: null,
+  };
+}
+
+function stockPriceReducer(
+  state: StockPriceState,
+  action: StockPriceAction
+): StockPriceState {
+  switch (action.type) {
+    case 'reset':
+      return createInitialState(action.symbol);
+    case 'load':
+      return {
+        symbol: action.symbol,
+        price: state.symbol === action.symbol ? state.price : getCached(action.symbol),
+        loading: true,
+        error: null,
+      };
+    case 'success':
+      return {
+        symbol: action.symbol,
+        price: action.price,
+        loading: false,
+        error: null,
+      };
+    case 'error':
+      return {
+        symbol: action.symbol,
+        price: state.symbol === action.symbol ? state.price : getCached(action.symbol),
+        loading: false,
+        error: action.error,
+      };
+    default:
+      return state;
+  }
+}
+
 export function useStockPrice(symbol: string, fallback: number) {
-  const [price, setPrice] = useState<number>(() => getCached(symbol) ?? fallback);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [state, dispatch] = useReducer(stockPriceReducer, symbol, createInitialState);
   const hasFetched = useRef(false);
+
+  useEffect(() => {
+    hasFetched.current = false;
+    dispatch({ type: 'reset', symbol });
+  }, [symbol]);
 
   useEffect(() => {
     if (!API_KEY || API_KEY === 'your_api_key_here') return;
 
     const cached = getCached(symbol);
     if (cached !== null) {
-      setPrice(cached);
       return;
     }
 
@@ -70,22 +127,22 @@ export function useStockPrice(symbol: string, fallback: number) {
     if (hasFetched.current) return;
     hasFetched.current = true;
 
-    setLoading(true);
-    setError(null);
+    dispatch({ type: 'load', symbol });
 
     fetchPrice(symbol)
       .then((p) => {
-        setPrice(p);
         setCache(symbol, p);
+        dispatch({ type: 'success', symbol, price: p });
       })
       .catch((err) => {
-        setError(err.message);
+        dispatch({ type: 'error', symbol, error: err.message });
         console.error(`Failed to fetch ${symbol} price:`, err);
-      })
-      .finally(() => {
-        setLoading(false);
       });
   }, [symbol]);
 
-  return { price, loading, error };
+  return {
+    price: state.symbol === symbol ? (state.price ?? fallback) : fallback,
+    loading: state.symbol === symbol ? state.loading : false,
+    error: state.symbol === symbol ? state.error : null,
+  };
 }
