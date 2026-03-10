@@ -73,10 +73,7 @@ function createInitialState(symbol: string): StockPriceState {
   };
 }
 
-function stockPriceReducer(
-  state: StockPriceState,
-  action: StockPriceAction
-): StockPriceState {
+function stockPriceReducer(state: StockPriceState, action: StockPriceAction): StockPriceState {
   switch (action.type) {
     case 'reset':
       return createInitialState(action.symbol);
