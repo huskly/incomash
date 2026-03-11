@@ -50,7 +50,9 @@ export default function App() {
   });
   const [sataYield, setSataYieldRaw] = useState(() => {
     const saved = localStorage.getItem('sataYield');
-    return saved !== null ? Number(saved) : Number(import.meta.env.VITE_SATA_DEFAULT_YIELD ?? 12.75);
+    return saved !== null
+      ? Number(saved)
+      : Number(import.meta.env.VITE_SATA_DEFAULT_YIELD ?? 12.75);
   });
   const setStrcYield = useCallback((v: number) => {
     setStrcYieldRaw(v);
