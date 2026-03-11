@@ -19,15 +19,20 @@ jobs:
     runs-on: ubuntu-latest
     environment: github-pages
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 25
           cache: npm
       - run: npm ci
       - run: npm run build
         env:
           VITE_ALPHA_VANTAGE_API_KEY: ${{ secrets.VITE_ALPHA_VANTAGE_API_KEY }}
+          VITE_STRC_FALLBACK_PRICE: 100.0
+          VITE_SATA_FALLBACK_PRICE: 100.0
+          VITE_STRC_DEFAULT_YIELD: 11.5
+          VITE_SATA_DEFAULT_YIELD: 12.75
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

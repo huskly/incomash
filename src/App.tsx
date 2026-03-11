@@ -7,8 +7,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { ChevronDown, Loader2 } from 'lucide-react';
 import { useStockPrice } from '@/hooks/useStockPrice';
 
-const STRC_FALLBACK = 25.0;
-const SATA_FALLBACK = 25.0;
+const STRC_FALLBACK = Number(import.meta.env.VITE_STRC_FALLBACK_PRICE ?? 25.0);
+const SATA_FALLBACK = Number(import.meta.env.VITE_SATA_FALLBACK_PRICE ?? 25.0);
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat('en-US', {
@@ -44,8 +44,22 @@ export default function App() {
     setSataSharesRaw(v);
     localStorage.setItem('sataShares', String(v));
   }, []);
-  const [strcYield, setStrcYield] = useState(11.5);
-  const [sataYield, setSataYield] = useState(13.3);
+  const [strcYield, setStrcYieldRaw] = useState(() => {
+    const saved = localStorage.getItem('strcYield');
+    return saved !== null ? Number(saved) : Number(import.meta.env.VITE_STRC_DEFAULT_YIELD ?? 11.5);
+  });
+  const [sataYield, setSataYieldRaw] = useState(() => {
+    const saved = localStorage.getItem('sataYield');
+    return saved !== null ? Number(saved) : Number(import.meta.env.VITE_SATA_DEFAULT_YIELD ?? 12.75);
+  });
+  const setStrcYield = useCallback((v: number) => {
+    setStrcYieldRaw(v);
+    localStorage.setItem('strcYield', String(v));
+  }, []);
+  const setSataYield = useCallback((v: number) => {
+    setSataYieldRaw(v);
+    localStorage.setItem('sataYield', String(v));
+  }, []);
   const [advancedOpen, setAdvancedOpen] = useState(false);
 
   const calculations = useMemo(() => {
