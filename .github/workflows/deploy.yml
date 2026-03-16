@@ -33,7 +33,7 @@ jobs:
           VITE_STRC_DEFAULT_YIELD: 11.5
           VITE_SATA_DEFAULT_YIELD: 12.75
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v4
         with:
           path: dist
 
