@@ -23,6 +23,14 @@ function formatPercent(value: number): string {
   return `${value.toFixed(2)}%`;
 }
 
+function parseOptionalPercent(value: string): number {
+  if (value.trim() === '') {
+    return 0;
+  }
+
+  return Number(value) || 0;
+}
+
 export default function App() {
   const strc = useStockPrice('STRC', STRC_FALLBACK);
   const sata = useStockPrice('SATA', SATA_FALLBACK);
@@ -62,9 +70,23 @@ export default function App() {
     setSataYieldRaw(v);
     localStorage.setItem('sataYield', String(v));
   }, []);
+  const [costOfCapital, setCostOfCapitalRaw] = useState(() => {
+    return localStorage.getItem('costOfCapital') ?? '';
+  });
+  const setCostOfCapital = useCallback((value: string) => {
+    setCostOfCapitalRaw(value);
+
+    if (value.trim() === '') {
+      localStorage.removeItem('costOfCapital');
+      return;
+    }
+
+    localStorage.setItem('costOfCapital', value);
+  }, []);
   const [advancedOpen, setAdvancedOpen] = useState(false);
 
   const calculations = useMemo(() => {
+    const costOfCapitalPct = parseOptionalPercent(costOfCapital);
     const strcValue = strcShares * strc.price;
     const sataValue = sataShares * sata.price;
     const totalValue = strcValue + sataValue;
@@ -81,8 +103,14 @@ export default function App() {
     const totalMonthlyIncome = totalAnnualIncome / 12;
 
     const blendedYield = totalValue > 0 ? (totalAnnualIncome / totalValue) * 100 : 0;
+    const annualCostOfCapital = totalValue * (costOfCapitalPct / 100);
+    const monthlyCostOfCapital = annualCostOfCapital / 12;
+    const netAnnualIncome = totalAnnualIncome - annualCostOfCapital;
+    const netMonthlyIncome = totalMonthlyIncome - monthlyCostOfCapital;
+    const netYield = totalValue > 0 ? (netAnnualIncome / totalValue) * 100 : 0;
 
     return {
+      costOfCapitalPct,
       strcValue,
       sataValue,
       totalValue,
@@ -95,8 +123,13 @@ export default function App() {
       sataMonthlyIncome,
       totalMonthlyIncome,
       blendedYield,
+      annualCostOfCapital,
+      monthlyCostOfCapital,
+      netAnnualIncome,
+      netMonthlyIncome,
+      netYield,
     };
-  }, [strcShares, sataShares, strcYield, sataYield, strc.price, sata.price]);
+  }, [costOfCapital, strcShares, sataShares, strcYield, sataYield, strc.price, sata.price]);
 
   const handleSlider = (value: number | readonly number[]) => {
     const strcPct = (Array.isArray(value) ? value[0] : value) / 100;
@@ -200,6 +233,21 @@ export default function App() {
                       onChange={(e) => setSataYield(Number(e.target.value) || 0)}
                     />
                   </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="cost-of-capital">Cost of Capital (%)</Label>
+                    <Input
+                      id="cost-of-capital"
+                      type="number"
+                      step={0.1}
+                      min={0}
+                      placeholder="Optional"
+                      value={costOfCapital}
+                      onChange={(e) => setCostOfCapital(e.target.value)}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Debits carrying cost from projected monthly and annual income.
+                    </p>
+                  </div>
                 </div>
               </CollapsibleContent>
             </Collapsible>
@@ -212,17 +260,17 @@ export default function App() {
             <CardTitle>Your Income</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-3 gap-4 text-center">
+            <div className="grid grid-cols-2 gap-4 text-center sm:grid-cols-4">
               <div>
                 <p className="text-sm text-muted-foreground">Monthly</p>
                 <p className="text-2xl font-bold text-emerald-400">
-                  {formatCurrency(calculations.totalMonthlyIncome)}
+                  {formatCurrency(calculations.netMonthlyIncome)}
                 </p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Annual</p>
                 <p className="text-2xl font-bold text-emerald-400">
-                  {formatCurrency(calculations.totalAnnualIncome)}
+                  {formatCurrency(calculations.netAnnualIncome)}
                 </p>
               </div>
               <div>
@@ -231,7 +279,19 @@ export default function App() {
                   {formatPercent(calculations.blendedYield)}
                 </p>
               </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Net Yield</p>
+                <p className="text-2xl font-bold text-emerald-400">
+                  {formatPercent(calculations.netYield)}
+                </p>
+              </div>
             </div>
+            {calculations.costOfCapitalPct > 0 && (
+              <p className="mt-4 text-center text-sm text-muted-foreground">
+                Includes {formatCurrency(calculations.monthlyCostOfCapital)}/mo and{' '}
+                {formatCurrency(calculations.annualCostOfCapital)}/yr of capital carrying cost.
+              </p>
+            )}
           </CardContent>
         </Card>
 
@@ -286,12 +346,14 @@ export default function App() {
                     <td className="pt-3">Total</td>
                     <td className="pt-3 text-right">100%</td>
                     <td className="pt-3 text-right">{formatCurrency(calculations.totalValue)}</td>
-                    <td className="pt-3 text-right">{formatPercent(calculations.blendedYield)}</td>
-                    <td className="pt-3 text-right text-emerald-400">
-                      {formatCurrency(calculations.totalMonthlyIncome)}
+                    <td className="pt-3 text-right">
+                      {formatPercent(calculations.netYield)}
                     </td>
                     <td className="pt-3 text-right text-emerald-400">
-                      {formatCurrency(calculations.totalAnnualIncome)}
+                      {formatCurrency(calculations.netMonthlyIncome)}
+                    </td>
+                    <td className="pt-3 text-right text-emerald-400">
+                      {formatCurrency(calculations.netAnnualIncome)}
                     </td>
                   </tr>
                 </tbody>

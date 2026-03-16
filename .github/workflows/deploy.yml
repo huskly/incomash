@@ -23,9 +23,9 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 25
-          cache: npm
-      - run: npm ci
-      - run: npm run build
+          cache: yarn
+      - run: yarn install --frozen-lockfile
+      - run: yarn build
         env:
           VITE_ALPHA_VANTAGE_API_KEY: ${{ secrets.VITE_ALPHA_VANTAGE_API_KEY }}
           VITE_STRC_FALLBACK_PRICE: 100.0
