@@ -346,9 +346,7 @@ export default function App() {
                     <td className="pt-3">Total</td>
                     <td className="pt-3 text-right">100%</td>
                     <td className="pt-3 text-right">{formatCurrency(calculations.totalValue)}</td>
-                    <td className="pt-3 text-right">
-                      {formatPercent(calculations.netYield)}
-                    </td>
+                    <td className="pt-3 text-right">{formatPercent(calculations.netYield)}</td>
                     <td className="pt-3 text-right text-emerald-400">
                       {formatCurrency(calculations.netMonthlyIncome)}
                     </td>
