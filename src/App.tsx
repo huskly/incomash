@@ -260,7 +260,13 @@ export default function App() {
             <CardTitle>Your Income</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 gap-4 text-center sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-4 text-center sm:grid-cols-5">
+              <div>
+                <p className="text-sm text-muted-foreground">Biweekly</p>
+                <p className="text-2xl font-bold text-emerald-400">
+                  {formatCurrency(calculations.netMonthlyIncome / 2)}
+                </p>
+              </div>
               <div>
                 <p className="text-sm text-muted-foreground">Monthly</p>
                 <p className="text-2xl font-bold text-emerald-400">
