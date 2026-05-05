@@ -25,14 +25,8 @@ function formatPercent(value: number): string {
 }
 
 export default function App() {
-  const {
-    holdings,
-    costOfCapital,
-    addHolding,
-    updateHolding,
-    removeHolding,
-    setCostOfCapital,
-  } = usePortfolio();
+  const { holdings, costOfCapital, addHolding, updateHolding, removeHolding, setCostOfCapital } =
+    usePortfolio();
 
   const priceMap = useHoldingPrices(holdings);
   useHoldingFundamentals({ holdings, updateHolding });
@@ -50,7 +44,7 @@ export default function App() {
 
   const projections = useMemo(
     () => calculateProjections(holdings, pricesById, costOfCapital),
-    [holdings, pricesById, costOfCapital],
+    [holdings, pricesById, costOfCapital]
   );
 
   const anyLoading = holdings.some((h) => priceMap[h.id]?.loading);

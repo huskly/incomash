@@ -30,7 +30,7 @@ export function parseOptionalPercent(value: string): number {
 export function calculateProjections(
   holdings: Holding[],
   prices: Record<string, number>,
-  costOfCapital: string,
+  costOfCapital: string
 ): ProjectionResult {
   const costOfCapitalPct = parseOptionalPercent(costOfCapital);
 

@@ -29,9 +29,7 @@ export function useHoldingFundamentals({ holdings, updateHolding }: Options): vo
 
     for (const symbol of symbols) {
       const apply = (yieldPct: number | null, frequency: PayoutFrequency | null) => {
-        const matches = holdingsRef.current.filter(
-          (h) => h.symbol.trim().toUpperCase() === symbol,
-        );
+        const matches = holdingsRef.current.filter((h) => h.symbol.trim().toUpperCase() === symbol);
         for (const h of matches) {
           const patch: Partial<Holding> = {};
           if (h.yieldSource === 'auto' && yieldPct !== null) {

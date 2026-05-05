@@ -111,12 +111,7 @@ export function HoldingRow({ holding, price, projection, onChange, onRemove }: P
         {formatCurrency(annualIncome)}
       </td>
       <td className="py-2 text-right">
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          aria-label="Remove holding"
-          onClick={onRemove}
-        >
+        <Button variant="ghost" size="icon-xs" aria-label="Remove holding" onClick={onRemove}>
           <Trash2 />
         </Button>
       </td>
