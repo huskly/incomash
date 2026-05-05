@@ -1,14 +1,15 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Slider } from '@/components/ui/slider';
+import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronDown, Loader2 } from 'lucide-react';
-import { useStockPrice } from '@/hooks/useStockPrice';
-
-const STRC_FALLBACK = Number(import.meta.env.VITE_STRC_FALLBACK_PRICE ?? 25.0);
-const SATA_FALLBACK = Number(import.meta.env.VITE_SATA_FALLBACK_PRICE ?? 25.0);
+import { ChevronDown, Loader2, Plus } from 'lucide-react';
+import { HoldingRow } from '@/components/HoldingRow';
+import { usePortfolio } from '@/hooks/usePortfolio';
+import { useHoldingPrices } from '@/hooks/useHoldingPrices';
+import { useHoldingFundamentals } from '@/hooks/useHoldingFundamentals';
+import { calculateProjections } from '@/lib/projections';
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat('en-US', {
@@ -23,236 +24,52 @@ function formatPercent(value: number): string {
   return `${value.toFixed(2)}%`;
 }
 
-function parseOptionalPercent(value: string): number {
-  if (value.trim() === '') {
-    return 0;
-  }
-
-  return Number(value) || 0;
-}
-
 export default function App() {
-  const strc = useStockPrice('STRC', STRC_FALLBACK);
-  const sata = useStockPrice('SATA', SATA_FALLBACK);
-  const pricesLoading = strc.loading || sata.loading;
+  const {
+    holdings,
+    costOfCapital,
+    addHolding,
+    updateHolding,
+    removeHolding,
+    setCostOfCapital,
+  } = usePortfolio();
 
-  const [strcShares, setStrcSharesRaw] = useState(() => {
-    const saved = localStorage.getItem('strcShares');
-    return saved !== null ? Number(saved) : 1000;
-  });
-  const [sataShares, setSataSharesRaw] = useState(() => {
-    const saved = localStorage.getItem('sataShares');
-    return saved !== null ? Number(saved) : 1000;
-  });
-  const setStrcShares = useCallback((v: number) => {
-    setStrcSharesRaw(v);
-    localStorage.setItem('strcShares', String(v));
-  }, []);
-  const setSataShares = useCallback((v: number) => {
-    setSataSharesRaw(v);
-    localStorage.setItem('sataShares', String(v));
-  }, []);
-  const [strcYield, setStrcYieldRaw] = useState(() => {
-    const saved = localStorage.getItem('strcYield');
-    return saved !== null ? Number(saved) : Number(import.meta.env.VITE_STRC_DEFAULT_YIELD ?? 11.5);
-  });
-  const [sataYield, setSataYieldRaw] = useState(() => {
-    const saved = localStorage.getItem('sataYield');
-    return saved !== null
-      ? Number(saved)
-      : Number(import.meta.env.VITE_SATA_DEFAULT_YIELD ?? 12.75);
-  });
-  const setStrcYield = useCallback((v: number) => {
-    setStrcYieldRaw(v);
-    localStorage.setItem('strcYield', String(v));
-  }, []);
-  const setSataYield = useCallback((v: number) => {
-    setSataYieldRaw(v);
-    localStorage.setItem('sataYield', String(v));
-  }, []);
-  const [costOfCapital, setCostOfCapitalRaw] = useState(() => {
-    return localStorage.getItem('costOfCapital') ?? '';
-  });
-  const setCostOfCapital = useCallback((value: string) => {
-    setCostOfCapitalRaw(value);
+  const priceMap = useHoldingPrices(holdings);
+  useHoldingFundamentals({ holdings, updateHolding });
 
-    if (value.trim() === '') {
-      localStorage.removeItem('costOfCapital');
-      return;
-    }
-
-    localStorage.setItem('costOfCapital', value);
-  }, []);
   const [advancedOpen, setAdvancedOpen] = useState(false);
 
-  const calculations = useMemo(() => {
-    const costOfCapitalPct = parseOptionalPercent(costOfCapital);
-    const strcValue = strcShares * strc.price;
-    const sataValue = sataShares * sata.price;
-    const totalValue = strcValue + sataValue;
+  const pricesById = useMemo(() => {
+    const out: Record<string, number> = {};
+    for (const h of holdings) {
+      const p = priceMap[h.id]?.price;
+      if (p !== null && p !== undefined) out[h.id] = p;
+    }
+    return out;
+  }, [holdings, priceMap]);
 
-    const strcAllocationPct = totalValue > 0 ? (strcValue / totalValue) * 100 : 0;
-    const sataAllocationPct = totalValue > 0 ? (sataValue / totalValue) * 100 : 0;
+  const projections = useMemo(
+    () => calculateProjections(holdings, pricesById, costOfCapital),
+    [holdings, pricesById, costOfCapital],
+  );
 
-    const strcAnnualIncome = strcValue * (strcYield / 100);
-    const sataAnnualIncome = sataValue * (sataYield / 100);
-    const totalAnnualIncome = strcAnnualIncome + sataAnnualIncome;
-
-    const strcMonthlyIncome = strcAnnualIncome / 12;
-    const sataMonthlyIncome = sataAnnualIncome / 12;
-    const totalMonthlyIncome = totalAnnualIncome / 12;
-
-    const blendedYield = totalValue > 0 ? (totalAnnualIncome / totalValue) * 100 : 0;
-    const annualCostOfCapital = totalValue * (costOfCapitalPct / 100);
-    const monthlyCostOfCapital = annualCostOfCapital / 12;
-    const netAnnualIncome = totalAnnualIncome - annualCostOfCapital;
-    const netMonthlyIncome = totalMonthlyIncome - monthlyCostOfCapital;
-    const netYield = totalValue > 0 ? (netAnnualIncome / totalValue) * 100 : 0;
-
-    return {
-      costOfCapitalPct,
-      strcValue,
-      sataValue,
-      totalValue,
-      strcAllocationPct,
-      sataAllocationPct,
-      strcAnnualIncome,
-      sataAnnualIncome,
-      totalAnnualIncome,
-      strcMonthlyIncome,
-      sataMonthlyIncome,
-      totalMonthlyIncome,
-      blendedYield,
-      annualCostOfCapital,
-      monthlyCostOfCapital,
-      netAnnualIncome,
-      netMonthlyIncome,
-      netYield,
-    };
-  }, [costOfCapital, strcShares, sataShares, strcYield, sataYield, strc.price, sata.price]);
-
-  const handleSlider = (value: number | readonly number[]) => {
-    const strcPct = (Array.isArray(value) ? value[0] : value) / 100;
-    const totalValue = calculations.totalValue;
-    if (totalValue === 0) return;
-    const newStrcShares = Math.round((totalValue * strcPct) / strc.price);
-    const newSataShares = Math.round((totalValue * (1 - strcPct)) / sata.price);
-    setStrcShares(newStrcShares);
-    setSataShares(newSataShares);
-  };
-
-  const sliderValue = calculations.totalValue > 0 ? calculations.strcAllocationPct : 50;
+  const anyLoading = holdings.some((h) => priceMap[h.id]?.loading);
 
   return (
     <div className="dark min-h-screen bg-background text-foreground">
-      <div className="mx-auto max-w-2xl px-4 py-8">
+      <div className="mx-auto max-w-5xl px-4 py-8">
         <header className="mb-8 text-center">
           <h1 className="text-3xl font-bold tracking-tight">incomash</h1>
-          <p className="mt-2 text-muted-foreground">Estimate your STRC &amp; SATA income</p>
-          {pricesLoading && (
+          <p className="mt-2 text-muted-foreground">
+            Estimate your dividend income across any portfolio
+          </p>
+          {anyLoading && (
             <div className="mt-2 flex items-center justify-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="h-3 w-3 animate-spin" />
-              Fetching live prices...
+              Fetching live data...
             </div>
           )}
         </header>
-
-        {/* Inputs */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>Your Holdings</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="strc-shares">STRC Shares</Label>
-                <Input
-                  id="strc-shares"
-                  type="number"
-                  min={0}
-                  value={strcShares}
-                  onChange={(e) => setStrcShares(Number(e.target.value) || 0)}
-                />
-                <p className="text-xs text-muted-foreground">
-                  ≈ {formatCurrency(calculations.strcValue)} @ ${strc.price.toFixed(2)}/sh
-                </p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="sata-shares">SATA Shares</Label>
-                <Input
-                  id="sata-shares"
-                  type="number"
-                  min={0}
-                  value={sataShares}
-                  onChange={(e) => setSataShares(Number(e.target.value) || 0)}
-                />
-                <p className="text-xs text-muted-foreground">
-                  ≈ {formatCurrency(calculations.sataValue)} @ ${sata.price.toFixed(2)}/sh
-                </p>
-              </div>
-            </div>
-
-            {/* Allocation Slider */}
-            <div className="space-y-3 pt-2">
-              <div className="flex items-center justify-between text-sm">
-                <span>STRC {calculations.strcAllocationPct.toFixed(0)}%</span>
-                <span>SATA {calculations.sataAllocationPct.toFixed(0)}%</span>
-              </div>
-              <Slider value={[sliderValue]} onValueChange={handleSlider} max={100} step={1} />
-            </div>
-
-            {/* Advanced Settings */}
-            <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
-              <CollapsibleTrigger className="flex w-full items-center gap-2 pt-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-                <ChevronDown
-                  className={`h-4 w-4 transition-transform ${advancedOpen ? 'rotate-180' : ''}`}
-                />
-                Advanced Settings
-              </CollapsibleTrigger>
-              <CollapsibleContent className="pt-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="strc-yield">STRC Yield (%)</Label>
-                    <Input
-                      id="strc-yield"
-                      type="number"
-                      step={0.1}
-                      min={0}
-                      value={strcYield}
-                      onChange={(e) => setStrcYield(Number(e.target.value) || 0)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="sata-yield">SATA Yield (%)</Label>
-                    <Input
-                      id="sata-yield"
-                      type="number"
-                      step={0.1}
-                      min={0}
-                      value={sataYield}
-                      onChange={(e) => setSataYield(Number(e.target.value) || 0)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="cost-of-capital">Cost of Capital (%)</Label>
-                    <Input
-                      id="cost-of-capital"
-                      type="number"
-                      step={0.1}
-                      min={0}
-                      placeholder="Optional"
-                      value={costOfCapital}
-                      onChange={(e) => setCostOfCapital(e.target.value)}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Debits carrying cost from projected monthly and annual income.
-                    </p>
-                  </div>
-                </div>
-              </CollapsibleContent>
-            </Collapsible>
-          </CardContent>
-        </Card>
 
         {/* Income Summary */}
         <Card className="mb-6">
@@ -264,105 +81,142 @@ export default function App() {
               <div>
                 <p className="text-sm text-muted-foreground">Biweekly</p>
                 <p className="text-2xl font-bold text-emerald-400">
-                  {formatCurrency(calculations.netMonthlyIncome / 2)}
+                  {formatCurrency(projections.netMonthlyIncome / 2)}
                 </p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Monthly</p>
                 <p className="text-2xl font-bold text-emerald-400">
-                  {formatCurrency(calculations.netMonthlyIncome)}
+                  {formatCurrency(projections.netMonthlyIncome)}
                 </p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Annual</p>
                 <p className="text-2xl font-bold text-emerald-400">
-                  {formatCurrency(calculations.netAnnualIncome)}
+                  {formatCurrency(projections.netAnnualIncome)}
                 </p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Blended Yield</p>
                 <p className="text-2xl font-bold text-emerald-400">
-                  {formatPercent(calculations.blendedYield)}
+                  {formatPercent(projections.blendedYield)}
                 </p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Net Yield</p>
                 <p className="text-2xl font-bold text-emerald-400">
-                  {formatPercent(calculations.netYield)}
+                  {formatPercent(projections.netYield)}
                 </p>
               </div>
             </div>
-            {calculations.costOfCapitalPct > 0 && (
+            {projections.costOfCapitalPct > 0 && (
               <p className="mt-4 text-center text-sm text-muted-foreground">
-                Includes {formatCurrency(calculations.monthlyCostOfCapital)}/mo and{' '}
-                {formatCurrency(calculations.annualCostOfCapital)}/yr of capital carrying cost.
+                Includes {formatCurrency(projections.monthlyCostOfCapital)}/mo and{' '}
+                {formatCurrency(projections.annualCostOfCapital)}/yr of capital carrying cost.
               </p>
             )}
           </CardContent>
         </Card>
 
-        {/* Allocation Breakdown */}
-        <Card>
+        {/* Holdings table */}
+        <Card className="mb-6">
           <CardHeader>
-            <CardTitle>Your Allocation</CardTitle>
+            <CardTitle>Your Holdings</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b text-muted-foreground">
-                    <th className="pb-2 text-left font-medium">Asset</th>
-                    <th className="pb-2 text-right font-medium">Allocation</th>
-                    <th className="pb-2 text-right font-medium">Value</th>
-                    <th className="pb-2 text-right font-medium">Yield</th>
-                    <th className="pb-2 text-right font-medium">Monthly</th>
-                    <th className="pb-2 text-right font-medium">Annual</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr className="border-b border-border/50">
-                    <td className="py-3 font-medium">STRC</td>
-                    <td className="py-3 text-right">
-                      {calculations.strcAllocationPct.toFixed(0)}%
-                    </td>
-                    <td className="py-3 text-right">{formatCurrency(calculations.strcValue)}</td>
-                    <td className="py-3 text-right">{formatPercent(strcYield)}</td>
-                    <td className="py-3 text-right text-emerald-400">
-                      {formatCurrency(calculations.strcMonthlyIncome)}
-                    </td>
-                    <td className="py-3 text-right text-emerald-400">
-                      {formatCurrency(calculations.strcAnnualIncome)}
-                    </td>
-                  </tr>
-                  <tr className="border-b border-border/50">
-                    <td className="py-3 font-medium">SATA</td>
-                    <td className="py-3 text-right">
-                      {calculations.sataAllocationPct.toFixed(0)}%
-                    </td>
-                    <td className="py-3 text-right">{formatCurrency(calculations.sataValue)}</td>
-                    <td className="py-3 text-right">{formatPercent(sataYield)}</td>
-                    <td className="py-3 text-right text-emerald-400">
-                      {formatCurrency(calculations.sataMonthlyIncome)}
-                    </td>
-                    <td className="py-3 text-right text-emerald-400">
-                      {formatCurrency(calculations.sataAnnualIncome)}
-                    </td>
-                  </tr>
-                  <tr className="font-semibold">
-                    <td className="pt-3">Total</td>
-                    <td className="pt-3 text-right">100%</td>
-                    <td className="pt-3 text-right">{formatCurrency(calculations.totalValue)}</td>
-                    <td className="pt-3 text-right">{formatPercent(calculations.netYield)}</td>
-                    <td className="pt-3 text-right text-emerald-400">
-                      {formatCurrency(calculations.netMonthlyIncome)}
-                    </td>
-                    <td className="pt-3 text-right text-emerald-400">
-                      {formatCurrency(calculations.netAnnualIncome)}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+            {holdings.length === 0 ? (
+              <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
+                <p className="mb-4">Add a symbol to get started.</p>
+                <Button onClick={addHolding}>
+                  <Plus />
+                  Add symbol
+                </Button>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-muted-foreground">
+                      <th className="pb-2 pr-2 text-left font-medium">Symbol</th>
+                      <th className="pb-2 pr-2 text-left font-medium">Shares</th>
+                      <th className="pb-2 pr-2 text-right font-medium">Price</th>
+                      <th className="pb-2 pr-2 text-right font-medium">Value</th>
+                      <th className="pb-2 pr-2 text-right font-medium">Alloc</th>
+                      <th className="pb-2 pr-2 text-right font-medium">Yield %</th>
+                      <th className="pb-2 pr-2 text-left font-medium">Frequency</th>
+                      <th className="pb-2 pr-2 text-right font-medium">Monthly</th>
+                      <th className="pb-2 pr-2 text-right font-medium">Annual</th>
+                      <th className="pb-2"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {holdings.map((h) => (
+                      <HoldingRow
+                        key={h.id}
+                        holding={h}
+                        price={priceMap[h.id] ?? { price: null, loading: false, error: null }}
+                        projection={projections.byHolding[h.id]}
+                        onChange={(patch) => updateHolding(h.id, patch)}
+                        onRemove={() => removeHolding(h.id)}
+                      />
+                    ))}
+                    <tr className="font-semibold">
+                      <td className="pt-3" colSpan={3}>
+                        Total
+                      </td>
+                      <td className="pt-3 text-right tabular-nums">
+                        {formatCurrency(projections.totalValue)}
+                      </td>
+                      <td className="pt-3 text-right tabular-nums">100%</td>
+                      <td className="pt-3 text-right tabular-nums">
+                        {formatPercent(projections.netYield)}
+                      </td>
+                      <td className="pt-3"></td>
+                      <td className="pt-3 text-right tabular-nums text-emerald-400">
+                        {formatCurrency(projections.netMonthlyIncome)}
+                      </td>
+                      <td className="pt-3 text-right tabular-nums text-emerald-400">
+                        {formatCurrency(projections.netAnnualIncome)}
+                      </td>
+                      <td className="pt-3"></td>
+                    </tr>
+                  </tbody>
+                </table>
+                <div className="mt-4">
+                  <Button variant="outline" size="sm" onClick={addHolding}>
+                    <Plus />
+                    Add symbol
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Advanced Settings */}
+            <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
+              <CollapsibleTrigger className="flex w-full items-center gap-2 pt-4 text-sm text-muted-foreground hover:text-foreground transition-colors">
+                <ChevronDown
+                  className={`h-4 w-4 transition-transform ${advancedOpen ? 'rotate-180' : ''}`}
+                />
+                Advanced Settings
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-4">
+                <div className="max-w-xs space-y-2">
+                  <Label htmlFor="cost-of-capital">Cost of Capital (%)</Label>
+                  <Input
+                    id="cost-of-capital"
+                    type="number"
+                    step={0.1}
+                    min={0}
+                    placeholder="Optional"
+                    value={costOfCapital}
+                    onChange={(e) => setCostOfCapital(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Debits carrying cost from projected monthly and annual income.
+                  </p>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
           </CardContent>
         </Card>
 
