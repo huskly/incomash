@@ -16,7 +16,9 @@ function asJsonObject(data: unknown): AlphaVantageJson {
   return {};
 }
 
-export async function fetchAlphaVantageJson(params: Record<string, string>): Promise<AlphaVantageJson> {
+export async function fetchAlphaVantageJson(
+  params: Record<string, string>
+): Promise<AlphaVantageJson> {
   const url = new URL(BASE_URL);
   for (const [key, value] of Object.entries(params)) {
     url.searchParams.set(key, value);
@@ -30,7 +32,7 @@ export async function fetchAlphaVantageJson(params: Record<string, string>): Pro
 
   requestQueue = request.then(
     () => undefined,
-    () => undefined,
+    () => undefined
   );
 
   return request;

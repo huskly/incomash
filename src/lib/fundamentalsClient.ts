@@ -70,7 +70,10 @@ async function fetchDividendsFrequency(symbol: string): Promise<PayoutFrequency 
   const data = await fetchAlphaVantageJson({ function: 'DIVIDENDS', symbol });
   const records: Array<{ ex_dividend_date?: string }> = Array.isArray(data.data)
     ? data.data
-        .filter((record): record is Record<string, unknown> => Boolean(record) && typeof record === 'object')
+        .filter(
+          (record): record is Record<string, unknown> =>
+            Boolean(record) && typeof record === 'object'
+        )
         .map((record) => ({
           ex_dividend_date:
             typeof record.ex_dividend_date === 'string' ? record.ex_dividend_date : undefined,
