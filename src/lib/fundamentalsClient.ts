@@ -1,8 +1,7 @@
 import type { PayoutFrequency } from './portfolio';
-import { hasApiKey } from './quoteClient';
+import { fetchAlphaVantageJson, hasApiKey } from './alphaVantageClient';
 
 const CACHE_DURATION_MS = 24 * 60 * 60 * 1000; // 24h
-const API_KEY = import.meta.env.VITE_ALPHA_VANTAGE_API_KEY as string;
 
 export interface Fundamentals {
   yieldPct: number | null;
@@ -58,11 +57,9 @@ function inferFrequency(dates: string[]): PayoutFrequency | null {
 }
 
 async function fetchOverviewYield(symbol: string): Promise<number | null> {
-  const url = `https://www.alphavantage.co/query?function=OVERVIEW&symbol=${encodeURIComponent(symbol)}&apikey=${API_KEY}`;
-  const res = await fetch(url);
-  const data = await res.json();
+  const data = await fetchAlphaVantageJson({ function: 'OVERVIEW', symbol });
   const raw = data?.DividendYield;
-  if (!raw || raw === 'None' || raw === '0' || raw === '-') return null;
+  if (typeof raw !== 'string' || raw === 'None' || raw === '0' || raw === '-') return null;
   const num = parseFloat(raw);
   if (isNaN(num) || num <= 0) return null;
   // Alpha Vantage returns yield as a decimal (e.g. "0.0125" = 1.25%)
@@ -70,10 +67,15 @@ async function fetchOverviewYield(symbol: string): Promise<number | null> {
 }
 
 async function fetchDividendsFrequency(symbol: string): Promise<PayoutFrequency | null> {
-  const url = `https://www.alphavantage.co/query?function=DIVIDENDS&symbol=${encodeURIComponent(symbol)}&apikey=${API_KEY}`;
-  const res = await fetch(url);
-  const data = await res.json();
-  const records: Array<{ ex_dividend_date?: string }> = Array.isArray(data?.data) ? data.data : [];
+  const data = await fetchAlphaVantageJson({ function: 'DIVIDENDS', symbol });
+  const records: Array<{ ex_dividend_date?: string }> = Array.isArray(data.data)
+    ? data.data
+        .filter((record): record is Record<string, unknown> => Boolean(record) && typeof record === 'object')
+        .map((record) => ({
+          ex_dividend_date:
+            typeof record.ex_dividend_date === 'string' ? record.ex_dividend_date : undefined,
+        }))
+    : [];
   const dates = records.map((r) => r.ex_dividend_date ?? '').filter(Boolean);
   return inferFrequency(dates);
 }
@@ -92,10 +94,8 @@ export async function fetchFundamentals(symbol: string): Promise<Fundamentals> {
   if (existing) return existing;
 
   const promise = (async () => {
-    const [yieldPct, frequency] = await Promise.all([
-      fetchOverviewYield(symbol).catch(() => null),
-      fetchDividendsFrequency(symbol).catch(() => null),
-    ]);
+    const yieldPct = await fetchOverviewYield(symbol).catch(() => null);
+    const frequency = await fetchDividendsFrequency(symbol).catch(() => null);
     const result: Fundamentals = { yieldPct, frequency };
     setCache(symbol, result);
     return result;

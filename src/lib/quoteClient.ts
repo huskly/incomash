@@ -1,14 +1,13 @@
+import { fetchAlphaVantageJson, hasApiKey } from './alphaVantageClient';
+
 const CACHE_DURATION_MS = 60 * 60 * 1000; // 1 hour
-const API_KEY = import.meta.env.VITE_ALPHA_VANTAGE_API_KEY as string;
 
 interface CacheEntry {
   price: number;
   timestamp: number;
 }
 
-export function hasApiKey(): boolean {
-  return Boolean(API_KEY) && API_KEY !== 'your_api_key_here';
-}
+export { hasApiKey };
 
 export function getCachedQuote(symbol: string): number | null {
   try {
@@ -39,10 +38,13 @@ export async function fetchQuote(symbol: string): Promise<number> {
   if (existing) return existing;
 
   const promise = (async () => {
-    const url = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${encodeURIComponent(symbol)}&apikey=${API_KEY}`;
-    const res = await fetch(url);
-    const data = await res.json();
-    const price = parseFloat(data['Global Quote']?.['05. price']);
+    const data = await fetchAlphaVantageJson({ function: 'GLOBAL_QUOTE', symbol });
+    const quote = data['Global Quote'];
+    const rawPrice =
+      quote && typeof quote === 'object' && !Array.isArray(quote)
+        ? (quote as Record<string, unknown>)['05. price']
+        : null;
+    const price = typeof rawPrice === 'string' ? parseFloat(rawPrice) : NaN;
     if (isNaN(price)) {
       throw new Error(`No price returned for ${symbol}`);
     }
