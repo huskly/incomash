@@ -53,6 +53,9 @@ export async function fetchQuote(symbol: string): Promise<number> {
   })();
 
   inflight.set(symbol, promise);
-  promise.finally(() => inflight.delete(symbol));
+  void promise.then(
+    () => inflight.delete(symbol),
+    () => inflight.delete(symbol)
+  );
   return promise;
 }

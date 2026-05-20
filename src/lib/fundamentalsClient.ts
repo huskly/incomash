@@ -105,6 +105,9 @@ export async function fetchFundamentals(symbol: string): Promise<Fundamentals> {
   })();
 
   inflight.set(symbol, promise);
-  promise.finally(() => inflight.delete(symbol));
+  void promise.then(
+    () => inflight.delete(symbol),
+    () => inflight.delete(symbol)
+  );
   return promise;
 }
